@@ -11,6 +11,7 @@ import sys
 import time
 import logging
 from argparse import ArgumentParser
+import traceback
 
 from slackclient import SlackClient
 
@@ -46,6 +47,23 @@ class RtmBot(object):
             self.last_ping = now
     def input(self, data):
         if "type" in data:
+            try:
+                if data["type"] == "message":
+                    if "team" in data and "user" in data:
+                        team_id = data["team"]
+                        user_id = data["user"]
+                        if team_id not in profiles:
+                            profiles[team_id] = dict()
+                        if user_id not in profiles[team_id]:
+                            json_res = self.slack_client.api_call("users.info", user=data["user"])
+                            str_res = json_res.decode("utf-8", "strict")
+                            res = json.loads(str_res)
+                            profiles[team_id][user_id] = {"name": res["user"]["name"], "profile": res["user"]["profile"]}
+                        data["name"] = profiles[team_id][user_id]["name"]
+                        data["profile"] = profiles[team_id][user_id]["profile"]
+            except:
+                print("Parsing of message data didn't quite work as expected")
+                print(traceback.print_exc())
             function_name = "process_" + data["type"]
             dbg("got {}".format(function_name))
             for plugin in self.bot_plugins:
@@ -192,6 +210,7 @@ if __name__ == "__main__":
     site_plugins = []
     files_currently_downloading = []
     job_hash = {}
+    profiles = {}
 
     if "DAEMON" in config:
         if config["DAEMON"]:
