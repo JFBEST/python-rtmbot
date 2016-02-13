@@ -50,6 +50,7 @@ class RtmBot(object):
             try:
                 if data["type"] == "message":
                     if "team" in data and "user" in data:
+                        # Users.info
                         team_id = data["team"]
                         user_id = data["user"]
                         if team_id not in profiles:
@@ -59,8 +60,23 @@ class RtmBot(object):
                             str_res = json_res.decode("utf-8", "strict")
                             res = json.loads(str_res)
                             profiles[team_id][user_id] = {"name": res["user"]["name"], "profile": res["user"]["profile"]}
-                        data["name"] = profiles[team_id][user_id]["name"]
-                        data["profile"] = profiles[team_id][user_id]["profile"]
+                        if team_id in profiles and user_id in profiles[team_id]:
+                            data["name"] = profiles[team_id][user_id]["name"]
+                            data["profile"] = profiles[team_id][user_id]["profile"]
+
+                        # Channels.info
+                        global channel_info
+                        if config["CHANNEL"] and not channel_info:
+                            json_res = self.slack_client.api_call("channels.list")
+                            str_res = json_res.decode("utf-8", "strict")
+                            res = json.loads(str_res)
+
+                            for channel in res["channels"]:
+                                if channel['name'] == config["CHANNEL"].lstrip('#'):
+                                    channel_info = channel
+
+                        if channel_info:
+                            data["channel-info"] = channel_info
             except:
                 print("Parsing of message data didn't quite work as expected")
                 print(traceback.print_exc())
@@ -211,6 +227,7 @@ if __name__ == "__main__":
     files_currently_downloading = []
     job_hash = {}
     profiles = {}
+    channel_info = {}
 
     if "DAEMON" in config:
         if config["DAEMON"]:
